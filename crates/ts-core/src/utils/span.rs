@@ -1,6 +1,7 @@
 //! Source location utilities
 
 use serde::{Serialize, Deserialize};
+use std::fmt;
 
 /// A position in source code
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -48,6 +49,12 @@ impl Position {
     }
 }
 
+impl fmt::Display for Position {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}:{}", self.line, self.column)
+    }
+}
+
 impl Span {
     /// Create a new span
     pub fn new(start: Position, end: Position) -> Self {
@@ -62,5 +69,11 @@ impl Span {
     /// Check if this span is empty
     pub fn is_empty(&self) -> bool {
         self.len() == 0
+    }
+}
+
+impl fmt::Display for Span {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}-{}", self.start, self.end)
     }
 }

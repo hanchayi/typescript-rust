@@ -20,68 +20,39 @@ impl CodeGenerator {
 
     /// Generate JavaScript code from AST
     pub fn generate(&mut self, nodes: &[AstNode]) -> Result<String, String> {
-        self.output.clear();
+        let mut output = String::new();
         
         for node in nodes {
-            self.generate_node(node)?;
+            match node {
+                AstNode::Statement(stmt) => {
+                    output.push_str(&self.generate_statement(stmt)?);
+                }
+                AstNode::Declaration(_decl) => {
+                    // TODO: 实现声明生成
+                    output.push_str("// Declaration\n");
+                }
+                AstNode::Expression(expr) => {
+                    output.push_str(&self.generate_expression(expr)?);
+                }
+            }
         }
         
-        Ok(self.output.clone())
+        Ok(output)
     }
     
-    /// Generate source map
-    pub fn generate_source_map(&self, _file_name: &str) -> Result<String, String> {
-        // Placeholder implementation
-        Ok("{\"version\":3,\"sources\":[],\"names\":[],\"mappings\":\"\"}".to_string())
-    }
-
-    /// Generate code for a single AST node
-    fn generate_node(&mut self, node: &AstNode) -> Result<(), String> {
-        match node {
-            AstNode::Statement(stmt) => self.generate_statement(stmt),
-            AstNode::Expression(expr) => {
-                self.generate_expression(expr)?;
-                self.write_line(";")?;
-                Ok(())
+    fn generate_statement(&mut self, stmt: &Statement) -> Result<String, String> {
+        match stmt {
+            Statement::Empty => Ok(String::new()),
+            Statement::Expression(expr) => {
+                Ok(format!("{};\n", self.generate_expression(expr)?))
             }
-            AstNode::Declaration(decl) => {
-                // Handle declarations
-                todo!("Declaration generation not implemented")
-            }
+            _ => Ok("// TODO: Implement statement\n".to_string()),
         }
     }
-
-    /// Generate code for a statement
-    fn generate_statement(&mut self, _stmt: &Statement) -> Result<(), String> {
-        // Placeholder implementation
-        todo!("Statement generation not implemented")
-    }
-
-    /// Generate code for an expression
-    fn generate_expression(&mut self, _expr: &Expression) -> Result<(), String> {
-        // Placeholder implementation
-        todo!("Expression generation not implemented")
-    }
-
-    /// Write a line with proper indentation
-    fn write_line(&mut self, text: &str) -> Result<(), String> {
-        for _ in 0..self.indent_level {
-            write!(self.output, "    ").map_err(|e| e.to_string())?;
-        }
-        writeln!(self.output, "{}", text).map_err(|e| e.to_string())?;
-        Ok(())
-    }
-
-    /// Increase indentation level
-    fn indent(&mut self) {
-        self.indent_level += 1;
-    }
-
-    /// Decrease indentation level
-    fn dedent(&mut self) {
-        if self.indent_level > 0 {
-            self.indent_level -= 1;
-        }
+    
+    fn generate_expression(&mut self, _expr: &Expression) -> Result<String, String> {
+        // TODO: 实现表达式生成
+        Ok("expr".to_string())
     }
 }
 

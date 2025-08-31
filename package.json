@@ -14,7 +14,13 @@
     "build:wasm": "./scripts/build-wasm.sh",
     "build:packages": "npm run build --workspaces",
     "dev": "npm run dev --workspaces",
-    "test": "cargo test && npm test --workspaces"
+    "test": "cargo test && npm test --workspaces",
+    "build": "cargo build --release",
+    "dev": "cargo build",
+    "test": "cargo test",
+    "test:baseline": "cargo run --bin ts-cli -- test",
+    "test:baseline:pattern": "cargo run --bin ts-cli -- test --pattern",
+    "test:baseline:verbose": "cargo run --bin ts-cli -- test --verbose"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

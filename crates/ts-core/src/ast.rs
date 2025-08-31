@@ -14,15 +14,29 @@ pub enum AstNode {
 /// Statement types
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Statement {
+    Empty,
     Expression(Expression),
-    Block(BlockStatement),
-    If(IfStatement),
-    While(WhileStatement),
-    For(ForStatement),
-    Return(ReturnStatement),
-    Break(BreakStatement),
-    Continue(ContinueStatement),
-    Variable(VariableStatement),
+    Variable(VariableDeclaration),
+    Function(FunctionDeclaration),
+    Return(Option<Expression>),
+    If {
+        condition: Expression,
+        then_branch: Box<Statement>,
+        else_branch: Option<Box<Statement>>,
+    },
+    While {
+        condition: Expression,
+        body: Box<Statement>,
+    },
+    Block(Vec<Statement>),
+    BlockStatement(BlockStatement),
+    IfStatement(IfStatement),
+    WhileStatement(WhileStatement),
+    ForStatement(ForStatement),
+    ReturnStatement(ReturnStatement),
+    BreakStatement(BreakStatement),
+    ContinueStatement(ContinueStatement),
+    VariableStatement(VariableStatement),
 }
 
 /// Expression types

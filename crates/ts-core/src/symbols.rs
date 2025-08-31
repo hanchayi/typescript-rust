@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 use crate::types::Type;
-use crate::utils::span::Span;
+use crate::utils::span::{Span, Position};
 
 /// Symbol kind
 #[derive(Debug, Clone, PartialEq)]
@@ -28,8 +28,17 @@ pub struct Symbol {
     pub exported: bool,
 }
 
+impl Symbol {
+    pub fn format_declaration(&self) -> String {
+        match &self.type_info {
+            Some(t) => format!("{}: {:?}", self.name, t),
+            None => self.name.clone(),
+        }
+    }
+}
+
 /// Scope for symbol resolution
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Scope {
     symbols: HashMap<String, Symbol>,
     parent: Option<Box<Scope>>,
@@ -81,7 +90,7 @@ impl Default for Scope {
     }
 }
 
-/// Symbol table for the entire program
+/// Symbol table for managing scopes
 #[derive(Debug)]
 pub struct SymbolTable {
     global_scope: Scope,
@@ -99,11 +108,11 @@ impl SymbolTable {
 
     /// Enter a new scope
     pub fn enter_scope(&mut self) {
-        let parent = self.current_scope.take().unwrap_or_else(|| {
-            // Clone the global scope as parent
-            Scope::new()
-        });
-        self.current_scope = Some(Scope::child(parent));
+        let new_scope = match self.current_scope.take() {
+            Some(current) => Scope::child(current),
+            None => Scope::child(self.global_scope.clone()),
+        };
+        self.current_scope = Some(new_scope);
     }
 
     /// Exit the current scope
@@ -124,11 +133,26 @@ impl SymbolTable {
 
     /// Look up a symbol
     pub fn lookup(&self, name: &str) -> Option<&Symbol> {
-        if let Some(ref scope) = self.current_scope {
-            scope.lookup(name)
-        } else {
-            self.global_scope.lookup(name)
+        self.current_scope.as_ref().and_then(|scope| scope.lookup(name))
+            .or_else(|| self.global_scope.lookup(name))
+    }
+
+    /// Format baseline output
+    pub fn format_baseline(&self, file_name: &str) -> String {
+        let mut output = String::new();
+        output.push_str(&format!("=== {} ===\n", file_name));
+        
+        for symbol in self.global_scope.symbols().values() {
+            output.push_str(&format!(
+                ">{}\nSymbol({}, Decl({}, {}))\n",
+                symbol.format_declaration(),
+                symbol.name,
+                file_name,
+                symbol.span.start.line // 使用 Position 的 line 字段
+            ));
         }
+        
+        output
     }
 }
 

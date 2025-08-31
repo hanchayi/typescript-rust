@@ -58,6 +58,24 @@ cargo test                     # Rust tests
 npm test --workspaces          # JavaScript tests
 ```
 
+### Baseline Testing
+
+```bash
+# Run baseline tests
+npm run test:baseline
+
+# Run baseline tests with pattern
+npm run test:baseline:pattern "*.ts"
+
+# Run verbose baseline tests
+npm run test:baseline:verbose
+
+# Run single baseline test
+cargo run --bin ts-cli -- test --pattern "2dArrays"
+```
+
+
+
 ## Usage
 
 ### Command Line

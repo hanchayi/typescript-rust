@@ -1,5 +1,7 @@
 //! TypeScript compiler core library
 
+use std::path::Path;
+
 pub mod ast;
 pub mod lexer;
 pub mod parser;
@@ -8,99 +10,74 @@ pub mod symbols;
 pub mod codegen;
 pub mod diagnostics;
 pub mod utils;
+pub mod baseline_test;
 
 // Re-export commonly used types
-pub use ast::{AstNode, Expression, Statement, Declaration};
-pub use lexer::{Lexer, Token, TokenKind, tokenize};
+pub use ast::AstNode;
+pub use lexer::{Lexer, Token, TokenKind};
 pub use parser::Parser;
-pub use types::{TypeChecker, Type};
-pub use symbols::{SymbolTable, Symbol};
+pub use types::{Type, TypeChecker};
+pub use symbols::{Symbol, SymbolTable, SymbolKind};
 pub use codegen::CodeGenerator;
-pub use diagnostics::{Diagnostic, DiagnosticKind, Severity};
+pub use diagnostics::Diagnostic;
+pub use utils::span::{Span, Position};
+pub use baseline_test::{BaselineTestRunner, BaselineTestResult};
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 /// Compilation options
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CompileOptions {
+    /// Target JavaScript version
     pub target: String,
+    /// Module system
     pub module: String,
+    /// Generate source maps
     pub source_map: bool,
+    /// Source file name
     pub file_name: String,
 }
 
-/// Compilation result
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CompileResult {
-    pub code: String,
-    pub source_map: Option<String>,
-    pub diagnostics: Vec<Diagnostic>,
+impl Default for CompileOptions {
+    fn default() -> Self {
+        Self {
+            target: "es5".to_string(),
+            module: "commonjs".to_string(),
+            source_map: false,
+            file_name: "input.ts".to_string(),
+        }
+    }
 }
 
-/// Main compilation function
-pub fn compile(source: &str, options: CompileOptions) -> Result<CompileResult, Vec<Diagnostic>> {
-    // Tokenize
-    let tokens = match tokenize(source) {
-        Ok(tokens) => tokens,
-        Err(e) => {
-            return Err(vec![Diagnostic {
-                kind: DiagnosticKind::Error,
-                severity: Severity::Error,
-                message: format!("Tokenization failed: {}", e),
-                span: utils::span::Span::default(),
-                help: None,
-            }]);
-        }
-    };
+/// Compilation result
+#[derive(Debug, Clone)]
+pub struct CompileResult {
+    /// Generated JavaScript code
+    pub code: String,
+    /// Compilation diagnostics
+    pub diagnostics: Vec<Diagnostic>,
+    /// Source map (if enabled)
+    pub source_map: Option<String>,
+}
 
-    // Parse
-    let mut parser = Parser::from_tokens(tokens);
-    let ast = match parser.parse() {
-        Ok(ast) => ast,
-        Err(diagnostics) => return Err(diagnostics),
-    };
-
-    // Type check
-    let mut type_checker = TypeChecker::new();
-    if let Err(diagnostics) = type_checker.check_program(&ast) {
-        return Err(diagnostics);
-    }
-
-    // Generate code
+/// Compile TypeScript source code
+pub fn compile(input: &Path, options: &CompileOptions) -> Result<CompileResult, Vec<Diagnostic>> {
+    let source = std::fs::read_to_string(input)
+        .map_err(|e| vec![Diagnostic::error(format!("Failed to read file: {}", e), Span::default())])?;
+    
+    let mut lexer = Lexer::new(&source);
+    let mut parser = Parser::new(lexer);
+    
+    let ast = parser.parse()
+        .map_err(|e| vec![Diagnostic::error(format!("Parse error: {:?}", e), Span::default())])?;
+    
     let mut codegen = CodeGenerator::new();
-    let code = match codegen.generate(&ast) {
-        Ok(code) => code,
-        Err(e) => {
-            return Err(vec![Diagnostic {
-                kind: DiagnosticKind::Error,
-                severity: Severity::Error,
-                message: format!("Code generation failed: {}", e),
-                span: utils::span::Span::default(),
-                help: None,
-            }]);
-        }
-    };
-
-    let source_map = if options.source_map {
-        match codegen.generate_source_map(&options.file_name) {
-            Ok(map) => Some(map),
-            Err(e) => {
-                return Err(vec![Diagnostic {
-                    kind: DiagnosticKind::Error,
-                    severity: Severity::Error,
-                    message: format!("Source map generation failed: {}", e),
-                    span: utils::span::Span::default(),
-                    help: None,
-                }]);
-            }
-        }
-    } else {
-        None
-    };
-
+    let js_code = codegen.generate(&[ast])
+        .map_err(|e| vec![Diagnostic::error(format!("Codegen error: {:?}", e), Span::default())])?;
+    
     Ok(CompileResult {
-        code,
-        source_map,
-        diagnostics: vec![], // TODO: Collect warnings
+        code: js_code,
+        diagnostics: Vec::new(),
+        source_map: None,
     })
 }

@@ -3,11 +3,12 @@
 use clap::{Parser, Subcommand};
 use colored::*;
 use std::path::PathBuf;
-use ts_core::{Compiler, CompileOptions, CompilerConfig, TargetVersion, ModuleKind};
+use ts_core::{compile, CompileOptions};
+use ts_core::baseline_test::BaselineTestRunner;
 
 /// TypeScript compiler implemented in Rust
 #[derive(Parser)]
-#[command(name = "tsc-rust")]
+#[command(name = "ts-cli")]
 #[command(about = "A TypeScript compiler implemented in Rust")]
 #[command(version)]
 struct Cli {
@@ -49,6 +50,24 @@ enum Commands {
         #[arg(required = true)]
         files: Vec<PathBuf>,
     },
+    /// Run baseline tests
+    Test {
+        /// Test name pattern to filter tests
+        #[arg(short, long)]
+        pattern: Option<String>,
+        
+        /// Directory containing test cases
+        #[arg(long, default_value = "tests/cases/compiler")]
+        test_dir: PathBuf,
+        
+        /// Directory containing baseline files
+        #[arg(long, default_value = "tests/baselines")]
+        baseline_dir: PathBuf,
+        
+        /// Show verbose output
+        #[arg(short, long)]
+        verbose: bool,
+    },
     /// Show version information
     Version,
 }
@@ -56,23 +75,19 @@ enum Commands {
 #[tokio::main]
 async fn main() {
     let cli = Cli::parse();
-    
+
     match cli.command {
-        Commands::Compile { 
-            files, 
-            outdir, 
-            target, 
-            module, 
-            strict, 
-            sourcemap 
-        } => {
+        Commands::Compile { files, outdir, target, module, strict, sourcemap } => {
             compile_files(files, outdir, target, module, strict, sourcemap).await;
         }
         Commands::Check { files } => {
             check_files(files).await;
         }
+        Commands::Test { pattern, test_dir, baseline_dir, verbose } => {
+            run_baseline_tests(pattern, test_dir, baseline_dir, verbose).await;
+        }
         Commands::Version => {
-            println!("tsc-rust {}", env!("CARGO_PKG_VERSION"));
+            println!("ts-cli version {}", env!("CARGO_PKG_VERSION"));
         }
     }
 }
@@ -82,70 +97,33 @@ async fn compile_files(
     _outdir: Option<PathBuf>,
     target: String,
     module: String,
-    strict: bool,
+    _strict: bool,
     sourcemap: bool,
 ) {
-    let target_version = match target.as_str() {
-        "es5" => TargetVersion::ES5,
-        "es2015" => TargetVersion::ES2015,
-        "es2017" => TargetVersion::ES2017,
-        "es2018" => TargetVersion::ES2018,
-        "es2019" => TargetVersion::ES2019,
-        "es2020" => TargetVersion::ES2020,
-        "es2021" => TargetVersion::ES2021,
-        "es2022" => TargetVersion::ES2022,
-        "esnext" => TargetVersion::ESNext,
-        _ => {
-            eprintln!("{}: Unknown target '{}'", "error".red(), target);
-            return;
-        }
-    };
-    
-    let module_kind = match module.as_str() {
-        "none" => ModuleKind::None,
-        "commonjs" => ModuleKind::CommonJS,
-        "amd" => ModuleKind::AMD,
-        "umd" => ModuleKind::UMD,
-        "system" => ModuleKind::System,
-        "es2015" => ModuleKind::ES2015,
-        "es2020" => ModuleKind::ES2020,
-        "es2022" => ModuleKind::ES2022,
-        "esnext" => ModuleKind::ESNext,
-        _ => {
-            eprintln!("{}: Unknown module system '{}'", "error".red(), module);
-            return;
-        }
-    };
-    
-    let config = CompilerConfig {
-        target: target_version,
-        module: module_kind,
-        strict,
-        source_map: sourcemap,
-    };
-    
-    let mut compiler = Compiler::with_config(config);
-    
     for file in files {
         match std::fs::read_to_string(&file) {
-            Ok(source) => {
+            Ok(_source) => {
                 let options = CompileOptions {
+                    target: target.clone(),
+                    module: module.clone(),
+                    source_map: sourcemap,
                     file_name: file.to_string_lossy().to_string(),
-                    config: compiler.config.clone(),
                 };
                 
-                match compiler.compile(&source, options) {
+                match compile(&file, &options) {
                     Ok(result) => {
                         if result.diagnostics.is_empty() {
                             println!("{}: Compiled successfully", file.display().to_string().green());
                         } else {
                             for diagnostic in &result.diagnostics {
-                                println!("{}: {}", "warning".yellow(), diagnostic);
+                                println!("{}: {}", "warning".yellow(), diagnostic.message);
                             }
                         }
                     }
-                    Err(e) => {
-                        eprintln!("{}: Failed to compile {}: {}", "error".red(), file.display(), e);
+                    Err(diagnostics) => {
+                        for diagnostic in &diagnostics {
+                            eprintln!("{}: {}", "error".red(), diagnostic.message);
+                        }
                     }
                 }
             }
@@ -159,4 +137,36 @@ async fn compile_files(
 async fn check_files(files: Vec<PathBuf>) {
     println!("{}: Type checking {} files...", "info".blue(), files.len());
     // Implementation for type checking without compilation
+}
+
+async fn run_baseline_tests(
+    pattern: Option<String>,
+    test_dir: PathBuf,
+    baseline_dir: PathBuf,
+    verbose: bool,
+) {
+    println!("{}", "Running baseline tests...".blue().bold());
+    
+    if verbose {
+        println!("Test directory: {}", test_dir.display());
+        println!("Baseline directory: {}", baseline_dir.display());
+        if let Some(ref p) = pattern {
+            println!("Pattern filter: {}", p);
+        }
+    }
+    
+    let runner = BaselineTestRunner::new(test_dir, baseline_dir);
+    let results = runner.run_tests(pattern.as_deref()).await;
+    
+    // 统计结果
+    let total_tests = results.len();
+    let passed_tests = results.iter().filter(|r| r.passed).count();
+    let failed_tests = total_tests - passed_tests;
+    
+    if failed_tests > 0 {
+        println!("{}", format!("❌ {} tests failed", failed_tests).red().bold());
+        std::process::exit(1);
+    } else {
+        println!("{}", format!("✅ All {} tests passed!", total_tests).green().bold());
+    }
 }

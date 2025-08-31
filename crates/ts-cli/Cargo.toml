@@ -5,7 +5,7 @@ edition = "2021"
 description = "Command line interface for TypeScript compiler"
 
 [[bin]]
-name = "tsc-rust"
+name = "ts-cli"
 path = "src/main.rs"
 
 [dependencies]

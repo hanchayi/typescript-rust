@@ -105,6 +105,17 @@ impl TypeChecker {
         // Placeholder implementation
         Ok(())
     }
+    
+    /// 格式化类型信息为基线格式
+    pub fn format_for_baseline(&self) -> String {
+        let mut output = String::new();
+        
+        // 使用实际存在的字段，而不是type_annotations
+        // 这里需要根据实际的TypeChecker结构来实现
+        output.push_str("// Type information not yet implemented\n");
+        
+        output
+    }
 }
 
 impl Default for TypeChecker {
