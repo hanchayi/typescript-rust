@@ -17,8 +17,11 @@ A TypeScript compiler implemented in Rust with WebAssembly support for modern de
 ### Prerequisites
 
 - Rust 1.70+
-- Node.js 18+
+- Node.js 20.18.1+
+- npm 10.0.0+
 - wasm-pack
+
+> **Note**: Node.js 20.18.1+ is required due to dependencies like `undici` and `cheerio` that require newer Node.js versions for proper functionality.
 
 ### Setup
 
