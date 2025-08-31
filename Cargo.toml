@@ -1,0 +1,19 @@
+[workspace]
+members = [
+    "crates/ts-core",
+    "crates/ts-wasm", 
+    "crates/ts-lsp",
+    "crates/ts-cli"
+]
+resolver = "2"
+
+[workspace.dependencies]
+ts-core = { path = "crates/ts-core" }
+tokio = { version = "1.0", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+wasm-bindgen = "0.2"
+tower-lsp = "0.20"
+clap = { version = "4.0", features = ["derive"] }
+thiserror = "1.0"
+string-interner = "0.14"
+indexmap = "1.9"

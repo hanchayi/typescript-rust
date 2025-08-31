@@ -1,0 +1,24 @@
+{
+  "name": "typescript-rust-workspace",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=20.18.1",
+    "npm": ">=10.0.0"
+  },
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build:wasm && npm run build:packages",
+    "build:wasm": "./scripts/build-wasm.sh",
+    "build:packages": "npm run build --workspaces",
+    "dev": "npm run dev --workspaces",
+    "test": "cargo test && npm test --workspaces"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0",
+    "vite": "^4.0.0"
+  }
+}
